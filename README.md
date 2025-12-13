@@ -204,6 +204,13 @@ cd terraform && terraform destroy
 
 ## Документы
 
+### Задание 2: Принципы микросервисной архитектуры
 - [microservices-02-principles.md](microservices-02-principles.md) - полный ответ на все задачи ДЗ
 - [DEPLOYMENT-RESULTS.md](DEPLOYMENT-RESULTS.md) - детальный отчет о развертывании
 - [terraform/README.md](terraform/README.md) - инструкции по GCP
+
+### Задание 3: Подходы к организации инфраструктуры
+- [microservices-03-approaches.md](microservices-03-approaches.md) - CI/CD, логирование и мониторинг
+  - Задача 1: GitHub Actions для CI/CD
+  - Задача 2: Loki + Grafana для логов
+  - Задача 3: Prometheus + Grafana для метрик
