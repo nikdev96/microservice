@@ -1,0 +1,5 @@
+project_id      = "your-gcp-project-id"
+region          = "us-central1"
+machine_type    = "e2-medium"
+ssh_user        = "ubuntu"
+ssh_public_key  = "ssh-rsa AAAAB3NzaC1... your-email@example.com"

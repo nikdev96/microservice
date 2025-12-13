@@ -1,0 +1,31 @@
+# Node modules
+node_modules/
+npm-debug.log*
+
+# Docker volumes
+minio-data/
+
+# Certificates
+certs/
+*.pem
+*.key
+*.crt
+
+# Environment
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
