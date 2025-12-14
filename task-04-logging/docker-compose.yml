@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  # ElasticSearch - хранилище логов
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.3
+    container_name: logging-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=true
+      - xpack.security.authc.api_key.enabled=true
+      - ELASTIC_PASSWORD=qwerty123456
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - logging
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s -u elastic:qwerty123456 http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Kibana - UI для визуализации логов
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.3
+    container_name: logging-kibana
+    ports:
+      - "8081:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=elastic
+      - ELASTICSEARCH_PASSWORD=qwerty123456
+      - XPACK_SECURITY_ENABLED=true
+      - XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      - SERVER_PUBLICBASEURL=http://localhost:8081
+    networks:
+      - logging
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:5601/api/status || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Vector - сборщик логов
+  vector:
+    image: timberio/vector:0.35.0-alpine
+    container_name: logging-vector
+    volumes:
+      - ./vector.toml:/etc/vector/vector.toml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - logging
+      - microservices
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    command: ["--config", "/etc/vector/vector.toml"]
+
+networks:
+  logging:
+    driver: bridge
+  microservices:
+    external: true
+
+volumes:
+  elasticsearch_data:
+    driver: local

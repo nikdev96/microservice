@@ -20,7 +20,7 @@ resource "google_compute_firewall" "allow_http" {
 
   allow {
     protocol = "tcp"
-    ports    = ["80", "443", "8080", "9000", "9001"]
+    ports    = ["80", "443", "8080", "8081", "8082", "9000", "9001", "9090"]
   }
 
   source_ranges = ["0.0.0.0/0"]
@@ -92,7 +92,7 @@ resource "google_compute_instance" "microservices_vm" {
 
     # Create project directory
     mkdir -p /opt/microservices
-    chown -R ubuntu:ubuntu /opt/microservices
+    chown -R nikita:nikita /opt/microservices
 
     echo "Docker and Docker Compose installed successfully" > /var/log/startup-script.log
   EOF

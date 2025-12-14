@@ -1,0 +1,86 @@
+# Prometheus Configuration для мониторинга микросервисов
+
+global:
+  scrape_interval: 15s # Интервал сбора метрик
+  evaluation_interval: 15s # Интервал оценки правил
+  external_labels:
+    monitor: 'microservices-monitor'
+    environment: 'development'
+
+# Правила для алертов (опционально)
+# rule_files:
+#   - "alerts/*.yml"
+
+# Конфигурация сбора метрик
+scrape_configs:
+  # Метрики самого Prometheus
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          service: 'prometheus'
+          type: 'monitoring'
+
+  # Метрики хоста (Node Exporter)
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+        labels:
+          service: 'node-exporter'
+          type: 'system'
+
+  # Метрики Docker контейнеров (cAdvisor)
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+        labels:
+          service: 'cadvisor'
+          type: 'containers'
+
+  # Метрики NGINX (если включен stub_status)
+  - job_name: 'nginx'
+    static_configs:
+      - targets: ['api-gateway:80']
+        labels:
+          service: 'nginx'
+          type: 'gateway'
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+
+  # Security Service метрики (если есть /metrics endpoint)
+  - job_name: 'security-service'
+    static_configs:
+      - targets: ['security-service:3000']
+        labels:
+          service: 'security'
+          type: 'microservice'
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+    # Игнорируем ошибки если endpoint не существует
+    honor_labels: true
+    params:
+      format: ['prometheus']
+
+  # Uploader Service метрики (если есть /metrics endpoint)
+  - job_name: 'uploader-service'
+    static_configs:
+      - targets: ['uploader-service:3001']
+        labels:
+          service: 'uploader'
+          type: 'microservice'
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+    honor_labels: true
+    params:
+      format: ['prometheus']
+
+  # MinIO метрики
+  - job_name: 'minio'
+    static_configs:
+      - targets: ['minio:9000']
+        labels:
+          service: 'minio'
+          type: 'storage'
+    metrics_path: '/minio/v2/metrics/cluster'
+    scrape_interval: 30s
+    honor_labels: true

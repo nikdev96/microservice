@@ -1,0 +1,99 @@
+# Vector Configuration для сбора логов микросервисов
+
+# Источник: Docker контейнеры
+[sources.docker_logs]
+type = "docker_logs"
+docker_host = "unix:///var/run/docker.sock"
+# Собираем логи только из наших микросервисов
+include_containers = ["api-gateway", "security-service", "uploader-service", "minio"]
+
+# Парсинг JSON логов (если сервисы логируют в JSON)
+[transforms.parse_logs]
+type = "remap"
+inputs = ["docker_logs"]
+source = '''
+  # Добавляем метаданные
+  .service = .container_name
+  .timestamp = now()
+
+  # Пытаемся распарсить JSON, если не получается - оставляем как есть
+  parsed, err = parse_json(.message)
+  if err == null && is_object(parsed) {
+    ., err = merge(., parsed)
+  }
+
+  # Извлекаем уровень лога из сообщения
+  if exists(.level) {
+    .log_level = .level
+  } else {
+    # Преобразуем message в строку для безопасного match
+    msg = to_string(.message) ?? ""
+    if match(msg, r'ERROR') {
+      .log_level = "error"
+    } else if match(msg, r'WARN') {
+      .log_level = "warn"
+    } else if match(msg, r'INFO') {
+      .log_level = "info"
+    } else {
+      .log_level = "debug"
+    }
+  }
+'''
+
+# Обогащение логов дополнительными полями
+[transforms.enrich_logs]
+type = "remap"
+inputs = ["parse_logs"]
+source = '''
+  # Добавляем окружение
+  .environment = "development"
+
+  # Добавляем тип сервиса
+  if match!(.container_name, r'api-gateway') {
+    .service_type = "gateway"
+  } else if match!(.container_name, r'security') {
+    .service_type = "authentication"
+  } else if match!(.container_name, r'uploader') {
+    .service_type = "storage"
+  } else if match!(.container_name, r'minio') {
+    .service_type = "object-storage"
+  }
+
+  # Создаем индекс для ElasticSearch по дням
+  .index_name = "microservices-logs-" + format_timestamp!(now(), "%Y.%m.%d")
+'''
+
+# Фильтрация (опционально - можно отбросить debug логи)
+[transforms.filter_logs]
+type = "filter"
+inputs = ["enrich_logs"]
+condition = '''
+  .log_level != "debug" || .service_type == "gateway"
+'''
+
+# Приемник: ElasticSearch
+[sinks.elasticsearch]
+type = "elasticsearch"
+inputs = ["filter_logs"]
+endpoints = ["http://elasticsearch:9200"]
+mode = "bulk"
+bulk.index = "{{ index_name }}"
+
+# Настройки буферизации
+buffer.type = "memory"
+buffer.max_events = 500
+buffer.when_full = "block"
+
+# Настройки повторных попыток
+request.retry_attempts = 5
+request.retry_initial_backoff_secs = 1
+request.retry_max_duration_secs = 10
+
+# Healthcheck для ElasticSearch
+healthcheck.enabled = true
+
+# Приемник: Console (для дебага)
+[sinks.console]
+type = "console"
+inputs = ["filter_logs"]
+encoding.codec = "json"
